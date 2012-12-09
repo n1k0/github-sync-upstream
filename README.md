@@ -9,9 +9,9 @@ Create a virtualenv, install pip requirements from `requirements.txt`.
 
 Set the following env variables:
 
-`GITHUB_USERNAME`: your github username
-`GITHUB_PASSWORD`: your github password
-`GITHUB_ORGANIZATION`: the target github organization
+- `GITHUB_USERNAME`: your github username
+- `GITHUB_PASSWORD`: your github password
+- `GITHUB_ORGANIZATION`: the target github organization
 
 ## Run
 
