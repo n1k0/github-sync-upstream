@@ -10,17 +10,6 @@ GITHUB_ORGANIZATION = os.environ.get('GITHUB_ORGANIZATION')
 ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
 REPOS_ROOT_DIR = os.path.join(ROOT_DIR, 'repos')
 
-if not GITHUB_USERNAME or not GITHUB_PASSWORD:
-    print 'Missing github username and/or password.'
-    sys.exit(1)
-
-if not GITHUB_ORGANIZATION:
-    print 'Missing github organization.'
-    sys.exit(1)
-
-gh = login(GITHUB_USERNAME, password=GITHUB_PASSWORD)
-casper_org = gh.organization(GITHUB_ORGANIZATION)
-repos = [r.refresh() for r in casper_org.iter_repos() if r.is_fork()]
 
 def command(cmd):
     try:
@@ -29,6 +18,7 @@ def command(cmd):
         print "Error invoking `%s`:" % ' '.join(err.cmd)
         print err.output
         sys.exit(1)
+
 
 def check_repo_dir(repo):
     repo_dir = os.path.join(REPOS_ROOT_DIR, repo.name)
@@ -40,6 +30,7 @@ def check_repo_dir(repo):
         os.chdir(ROOT_DIR)
     return repo_dir
 
+
 def update_repo(repo):
     repo_dir = check_repo_dir(repo)
     os.chdir(repo_dir)
@@ -49,7 +40,38 @@ def update_repo(repo):
     os.chdir(ROOT_DIR)
     print 'Updated %s' % repo.name
 
-for repo in repos:
-    update_repo(repo)
 
-print 'All done.'
+def run():
+    if not all([GITHUB_USERNAME, GITHUB_PASSWORD]):
+        print 'Missing github username and/or password.'
+        sys.exit(1)
+
+    gh = login(GITHUB_USERNAME, password=GITHUB_PASSWORD)
+
+    if GITHUB_ORGANIZATION:
+        q = (u'Sync all forked repositories for the "%s" organization? (yN): '
+             % GITHUB_ORGANIZATION)
+        organization = gh.organization(GITHUB_ORGANIZATION)
+        repos = organization.iter_repos()
+    else:
+        q = u"Sync all %s's forked repositories? (yN): " % GITHUB_USERNAME
+        repos = gh.iter_repos()
+
+    if not raw_input(q) in ('y', 'Y', 'yes'):
+        print 'Aborted.'
+        sys.exit(1)
+
+    repos = [r.refresh() for r in repos if r.is_fork()]
+
+    for repo in repos:
+        update_repo(repo)
+
+    print 'All done.'
+
+
+if __name__ == '__main__':
+    try:
+        run()
+    except KeyboardInterrupt:
+        print '\nAborted.'
+        sys.exit(1)

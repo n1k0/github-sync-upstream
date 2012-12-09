@@ -1,6 +1,6 @@
-# casper-sync
+# github-sync-upstream
 
-This is the Python script which automatically synchronizes this organization
+This Python script automatically synchronizes a github user or an organization
 forked repositories with their upstream parents.
 
 ## Setup
@@ -11,11 +11,15 @@ Set the following env variables:
 
 - `GITHUB_USERNAME`: your github username
 - `GITHUB_PASSWORD`: your github password
-- `GITHUB_ORGANIZATION`: the target github organization
+- `GITHUB_ORGANIZATION`: a target github organization (optional)
 
 ## Run
 
-    $ python github-org-sync.py
+    $ python github-sync-upstream.py
+
+## Compatibility
+
+This script requires Python 2.7+.
 
 ## License
 
