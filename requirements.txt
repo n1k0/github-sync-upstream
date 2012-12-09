@@ -1,0 +1,1 @@
+-e git+https://github.com/n1k0/github3.py.git@64cb1a5c3d357649619f23b323d0d1794fc3b3cf#egg=github3.py-dev
