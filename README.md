@@ -3,6 +3,10 @@
 This Python script automatically synchronizes a github user or an organization
 forked repositories with their upstream parents.
 
+This is how I keep all the repositories forked by
+[the casperjs organization](https://github.com/casperjs) in sync with the original
+repositories.
+
 **Warning:** this script is intended for synchronizing read-only repositories,
 and will basically perform an automatic merge from upstream before
 <ins>actually pushing the modifications</ins>. Use with caution.
