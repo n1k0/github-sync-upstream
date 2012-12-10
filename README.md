@@ -3,19 +3,31 @@
 This Python script automatically synchronizes a github user or an organization
 forked repositories with their upstream parents.
 
+**Warning:** this script is intended for synchronizing read-only repositories,
+and will basically perform an automatic merge from upstream before
+<ins>actually pushing the modifications</ins>. Use with caution.
+
 ## Setup
 
 Create a virtualenv, install pip requirements from `requirements.txt`.
 
-Set the following env variables:
+Set the following environment variables:
 
 - `GITHUB_USERNAME`: your github username
 - `GITHUB_PASSWORD`: your github password
 - `GITHUB_ORGANIZATION`: a target github organization (optional)
 
-## Run
+## Usage
 
-    $ python github-sync-upstream.py
+    $ ./github-sync-upstream
+
+To have it running with no prompting for confirmation (convenient for cronjobs):
+
+    $ ./github-sync-upstream --no_interactive
+
+To directly pass env variables to the script (hazardous but convenient for cronjobs):
+
+    $ GITHUB_USERNAME=foo GITHUB_PASSWORD=bar /path/to/github-sync-upstream --no_interactive
 
 ## Compatibility
 

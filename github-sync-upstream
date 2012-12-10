@@ -1,0 +1,142 @@
+#!/usr/bin/env python
+
+# Copyright (c) 2012 Nicolas Perriault
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is furnished
+# to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
+import os
+import subprocess
+import sys
+
+from argh import *
+from github3.api import login
+from github3.models import GitHubError
+from github3.repos import Repository
+
+GITHUB_USERNAME = os.environ.get('GITHUB_USERNAME')
+GITHUB_PASSWORD = os.environ.get('GITHUB_PASSWORD')
+GITHUB_ORGANIZATION = os.environ.get('GITHUB_ORGANIZATION')
+ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
+REPOS_ROOT_DIR = os.path.join(ROOT_DIR, 'repos')
+
+
+def confirm(question):
+    if not raw_input(question + ' (yN): ') in ('y', 'Y', 'yes'):
+        error(u'Aborted.')
+
+
+def connect(username, password):
+    assert username and password
+    try:
+        return login(username, password=password)
+    except GitHubError as err:
+        error(u'Error encountered: %s' % err)
+
+
+def execute(cmd):
+    assert isinstance(cmd, (list, tuple))
+    try:
+        return subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as err:
+        error([u"Error invoking `%s`:" % ' '.join(err.cmd),
+               err.output])
+
+
+def check_repo_dir(repo):
+    repo_dir = os.path.join(REPOS_ROOT_DIR, repo.name)
+    if not os.path.exists(repo_dir):
+        log(u"Checking out repo %s from %s..." % (repo.name, repo.ssh_url))
+        log(execute(['git', 'clone', repo.ssh_url, repo_dir]))
+        os.chdir(repo_dir)
+        log(execute(['git', 'remote', 'add', 'upstream', repo.parent.git_url]))
+        os.chdir(ROOT_DIR)
+    return repo_dir
+
+
+def error(messages, exit=True, status=1):
+    if isinstance(messages, basestring):
+        messages = [messages]
+    for message in messages:
+        sys.stderr.write(message + os.linesep)
+    if exit:
+        sys.exit(status)
+
+
+def get_repos(github, organization=None):
+    if organization:
+        repos = github.organization(organization).iter_repos()
+    else:
+        repos = github.iter_repos()
+    try:
+        return [r.refresh() for r in repos if r.is_fork()]
+    except GitHubError as err:
+        error(u"Github error: %s" % err)
+
+
+def log(messages):
+    if isinstance(messages, basestring):
+        messages = [messages]
+    for message in messages:
+        sys.stdout.write(message + os.linesep)
+
+
+def update_repo(repo):
+    assert isinstance(repo, Repository)
+    repo_dir = check_repo_dir(repo)
+    os.chdir(repo_dir)
+    log([execute(['git', 'fetch', 'upstream']),
+         execute(['git', 'merge', 'upstream/%s' % repo.master_branch]),
+         execute(['git', 'push'])])
+    os.chdir(ROOT_DIR)
+    log(u'Updated %s' % repo.name)
+
+
+@command
+def run(no_interactive=False):
+    """Run this process."""
+    if not all([GITHUB_USERNAME, GITHUB_PASSWORD]):
+        error(u'Missing github username and/or password.')
+    log(u'Authenticated to github API...')
+    gh = connect(GITHUB_USERNAME, GITHUB_PASSWORD)
+    log(u'Authenticated.')
+    log(u'Fetching forked repositories...')
+    repos = get_repos(gh, organization=GITHUB_ORGANIZATION)
+    num_repos = len(repos)
+    if not num_repos:
+        error(u'No forked repository found.')
+    log(u'Found %d forked repositories to synchronize.' % num_repos)
+    if no_interactive is not True:
+        if GITHUB_ORGANIZATION:
+            confirm(u'Sync %d forked repositories for the "%s" organization?'
+                    % (num_repos, GITHUB_ORGANIZATION))
+        else:
+            confirm(u"Synchronize %d %s's forked repositories? (yN): "
+                    % (num_repos, gh.user().name),)
+    for repo in repos:
+        log('Updating %s...' % repo)
+        update_repo(repo)
+        log('Done.')
+    log(u'All done.')
+
+
+if __name__ == '__main__':
+    try:
+        dispatch_command(run)
+    except KeyboardInterrupt:
+        error(u'Aborted.')
